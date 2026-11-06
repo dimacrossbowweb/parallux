@@ -1,4 +1,4 @@
-import gsap from 'gsap';
+import { gsap } from 'gsap';
 import { autorun, type IReactionDisposer } from 'mobx';
 import { type LayerBufferViewModel } from '../view-model/layer-buffer-view-model';
 
@@ -21,6 +21,8 @@ export class LayerBufferView {
   #glare: HTMLElement | null = null;
 
   #glareTimeline: gsap.core.Timeline | null = null;
+
+  #glareShown = false;
 
   #resizeObserver: ResizeObserver | null = null;
 
@@ -49,8 +51,8 @@ export class LayerBufferView {
     this.container.addEventListener('pointermove', this.#onPointerMove);
     this.container.addEventListener('pointerleave', this.#onPointerLeave);
 
-    this.#createGlare();
     this.viewModel.connect();
+    this.#createGlare();
     this.#dispose = autorun(() => this.#render());
     this.#observeResize();
   }
@@ -65,6 +67,7 @@ export class LayerBufferView {
     this.#activeLayerId = null;
     this.#glareTimeline?.kill();
     this.#glareTimeline = null;
+    this.#glareShown = false;
     this.#glare?.remove();
     this.#glare = null;
 
@@ -110,7 +113,9 @@ export class LayerBufferView {
   }
 
   #createGlare(): void {
-    const { enabled, background } = this.viewModel.glare;
+    const {
+      enabled, background, rest, shiftX, shiftY, scale, animated,
+    } = this.viewModel.glare;
 
     if (!enabled) return;
 
@@ -123,16 +128,21 @@ export class LayerBufferView {
       inset: '0',
       zIndex: GLARE_Z_INDEX,
       pointerEvents: 'none',
-      opacity: '0',
-      willChange: 'opacity',
+      opacity: animated ? '0' : String(rest),
+      willChange: 'transform, opacity',
       background,
     });
+
+    if (animated) gsap.set(glare, { xPercent: shiftX, yPercent: shiftY, scale });
 
     document.body.append(glare);
     this.#glare = glare;
   }
 
-  /** При появлении слоя на плоскости камеры засвет усиливается и спадает до `rest`. */
+  /**
+   * При смене слоя блик смещается и вырастает, затем возвращается к 100%. Всё это
+   * укладывается в длительность смены слоя: половина туда, половина обратно.
+   */
   #updateGlare(): void {
     const { activeLayerId } = this.viewModel;
 
@@ -140,17 +150,35 @@ export class LayerBufferView {
 
     this.#activeLayerId = activeLayerId;
 
-    if (activeLayerId === null || !this.#glare) return;
-
     const {
-      peak, rest, duration, easing,
+      rest, shiftX, shiftY, scale, animated,
     } = this.viewModel.glare;
-    const vars = { duration: duration / 1000, ease: easing };
+
+    if (!this.#glare || !animated) return;
+
+    const { duration, easing } = this.viewModel.moveSpeed();
+    const seconds = duration / 1000;
+    const away = {
+      xPercent: shiftX, yPercent: shiftY, scale, ease: easing,
+    };
+    const home = {
+      xPercent: 0, yPercent: 0, scale: 1, ease: easing,
+    };
+    const timeline = gsap.timeline();
+
+    if (activeLayerId === null) {
+      timeline.to(this.#glare, { ...away, opacity: 0, duration: seconds });
+    } else if (this.#glareShown) {
+      timeline
+        .to(this.#glare, { ...away, duration: seconds / 2 })
+        .to(this.#glare, { ...home, duration: seconds / 2 });
+    } else {
+      timeline.to(this.#glare, { ...home, opacity: rest, duration: seconds });
+    }
 
     this.#glareTimeline?.kill();
-    this.#glareTimeline = gsap.timeline()
-      .to(this.#glare, { ...vars, opacity: peak })
-      .to(this.#glare, { ...vars, opacity: rest });
+    this.#glareTimeline = timeline;
+    this.#glareShown = activeLayerId !== null;
   }
 
   #onPointerMove = (event: PointerEvent): void => {

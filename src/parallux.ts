@@ -4,6 +4,7 @@ import { Layer, type ILayerOptions } from './entities/layer/layer';
 import { type ILayer } from './entities/layer/layer.type';
 import { LayerBufferModel } from './model/layer-buffer-model';
 import { LayerBufferViewModel } from './view-model/layer-buffer-view-model';
+import { centerWithin } from './utils/layout';
 import { LayerBufferView, type TResizeListener } from './view/layer-buffer-view';
 
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -25,6 +26,11 @@ export interface IParalluxOpenOptions extends TCameraSpeed {
   focus?: HTMLElement;
 }
 
+export interface IParalluxLookAtOptions extends TCameraSpeed {
+  /** Какую часть пути до центра экрана проехать, от 0 до 1. */
+  approach?: number;
+}
+
 interface IOpenedLayer {
   layer: Layer;
   /** Куда вернуть камеру при закрытии. */
@@ -37,7 +43,7 @@ interface IOpenedLayer {
 /**
  * Центральная точка библиотеки. Методы возвращают `this`, а после `mount()` можно
  * продолжать добавлять слои и двигать камеру. Исключение — анимированные методы
- * `flyTo`, `flyBy`, `rotateTo`, `rotateBy`, `open`, `close` и `closeAll`: они
+ * `flyTo`, `flyBy`, `lookAt`, `rotateTo`, `rotateBy`, `open`, `close` и `closeAll`: они
  * возвращают промис, который завершается вместе с анимацией.
  *
  * @example
@@ -129,6 +135,20 @@ export class Parallux {
     });
   }
 
+  /** Подводит камеру к элементу, например к только что появившемуся меню. */
+  lookAt(
+    el: HTMLElement,
+    { approach = this.viewModel.config.approach, ...speed }: IParalluxLookAtOptions = {},
+  ): Promise<void> {
+    const root = this.#root;
+    const { x, y } = centerWithin(el, root);
+
+    return this.flyTo({
+      x: (x - root.clientWidth / 2) * approach,
+      y: (y - root.clientHeight / 2) * approach,
+    }, speed);
+  }
+
   rotateTo(angle: number, speed: TCameraSpeed = {}): Promise<void> {
     return this.viewModel.animate('rotate', speed, () => {
       this.model.rotateCameraTo(angle);
@@ -197,7 +217,7 @@ export class Parallux {
 
   mount(): this {
     this.#view ??= new LayerBufferView(
-      this.#container ?? document.body,
+      this.#root,
       this.viewModel,
       (size) => this.#resizeListeners.forEach((listener) => listener(size)),
     );
@@ -210,6 +230,10 @@ export class Parallux {
     this.#view?.destroy();
 
     return this;
+  }
+
+  get #root(): HTMLElement {
+    return this.#container ?? document.body;
   }
 
   #nextZ(): number {
@@ -230,8 +254,10 @@ export class Parallux {
     if (bottom.returnFocus instanceof HTMLElement) bottom.returnFocus.focus();
 
     await this.flyTo(bottom.previousZ, speed);
+    // Движение могли прервать, а слой удаляем только после ухода камеры,
+    // иначе он исчезнет, не успев раствориться.
+    await this.viewModel.settled();
 
-    // Слой удаляем после ухода камеры, иначе он исчезнет, не успев раствориться.
     closing.forEach(({ layer }) => this.removeById(layer.id));
   }
 }

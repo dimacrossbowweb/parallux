@@ -1,7 +1,17 @@
 {
-  "name": "parallux",
-  "version": "1.0.0",
-  "description": "",
+  "name": "@dimacrossbow/parallux",
+  "version": "0.1.0",
+  "description": "Layered interfaces with a camera: screens, menus and modals as depth on the z axis",
+  "keywords": [
+    "parallax",
+    "layers",
+    "camera",
+    "depth",
+    "ui",
+    "transitions",
+    "mobx",
+    "gsap"
+  ],
   "license": "ISC",
   "author": "dimacrossbow",
   "type": "module",
@@ -10,29 +20,40 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/parallux.js",
-      "require": "./dist/parallux.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/parallux.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/parallux.cjs"
+      }
     }
   },
   "files": [
     "dist"
   ],
   "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "dev": "vite",
-    "build": "vite build && tsc -p tsconfig.build.json",
+    "build": "vite build && npm run build:types",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "lint:fix": "eslint . --fix"
+    "lint:fix": "eslint . --fix",
+    "prepublishOnly": "npm run typecheck && npm run lint && npm test && npm run build",
+    "build:types": "dts-bundle-generator --project tsconfig.build.json --no-check -o dist/index.d.ts src/index.ts && node -e \"require('node:fs').copyFileSync('dist/index.d.ts','dist/index.d.cts')\""
   },
   "peerDependencies": {
     "mobx": "^7.0.0"
   },
   "devDependencies": {
     "@typescript/native": "npm:typescript@^7.0.2",
+    "dts-bundle-generator": "^9.5.1",
     "eslint": "^9.39.5",
     "eslint-config-airbnb-extended": "^3.3.0",
     "jsdom": "^29.1.1",

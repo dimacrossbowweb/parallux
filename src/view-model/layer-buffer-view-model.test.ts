@@ -284,7 +284,7 @@ describe('LayerBufferViewModel', () => {
 
       viewModel.setPointer(1, 1);
 
-      expect(viewModel.glare.peak).toBe(0.4);
+      expect(viewModel.glare.animated).toBe(false);
       expect(state(deep).scale).toBe('1');
       expect(Number(state(deep).opacity)).toBeLessThan(1);
       expect(viewModel.frame.pointerX).toBe(0);

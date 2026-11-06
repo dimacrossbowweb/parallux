@@ -16,8 +16,8 @@ export type TCameraSpeed = Partial<IParalluxTransition>;
  */
 export type TReducedMotion = 'auto' | 'always' | 'never';
 
-/** Блик: постоянный засвет от солнца поверх всей страницы. */
-export interface IParalluxGlare extends IParalluxTransition {
+/** Блик: постоянный засвет от солнца поверх всей страницы. Движется вместе со сменой слоёв. */
+export interface IParalluxGlare {
   enabled: boolean;
   /** Любой цвет CSS. Прозрачность задаёт силу засвета. */
   color: string;
@@ -25,8 +25,12 @@ export interface IParalluxGlare extends IParalluxTransition {
   angle: number;
   /** На каком проценте длины градиента засвет сходит на нет. */
   size: number;
-  /** Сила засвета в покое, от 0 до 1. При переходе он усиливается до 1 и спадает обратно. */
+  /** Сила засвета, от 0 до 1. */
   rest: number;
+  /** На сколько процентов от размера окна блик смещается при смене слоя. */
+  shift: number;
+  /** До какого масштаба вырастает при смещении: запас прячет его края за экраном. */
+  scale: number;
 }
 
 /** Реакция слоёв на указатель. */
@@ -46,6 +50,8 @@ export interface IParalluxConfig {
   zoom: number;
   /** Сдвиг в пикселях на единицу глубины при указателе у края контейнера. */
   strength: number;
+  /** Какую часть пути до центра экрана проезжает камера в `lookAt`, от 0 до 1. */
+  approach: number;
   reducedMotion: TReducedMotion;
   /** Движение камеры и переход между слоями. */
   transition: IParalluxTransition;

@@ -1,18 +1,9 @@
 import { Parallux } from '../src';
+import { find, fromTemplate } from './dom';
+import { setupDropdowns } from './dropdowns';
+import { setupScreens } from './screens';
 
 const GAP = 12;
-
-const find = <T extends Element>(selector: string, root: ParentNode = document): T => {
-  const el = root.querySelector<T>(selector);
-
-  if (!el) throw new Error(`[demo] ${selector} not found`);
-
-  return el;
-};
-
-const fromTemplate = (selector: string): HTMLElement => (
-  find<HTMLTemplateElement>(selector).content.firstElementChild?.cloneNode(true) as HTMLElement
-);
 
 const page = find<HTMLElement>('#page');
 const trigger = find<HTMLButtonElement>('#open-menu');
@@ -20,7 +11,10 @@ const status = find<HTMLElement>('#status');
 
 let placeMenu = (): void => {};
 
-const app = new Parallux({ zoom: 0.4 })
+const app = new Parallux({
+  zoom: 0.5,
+  pointer: { invertX: true, invertY: true },
+})
   .add({
     name: 'page', z: 0, el: page, scrollable: true,
   })
@@ -72,9 +66,16 @@ function openMenu(): void {
 }
 
 trigger.addEventListener('click', openMenu);
+const setStatus = (text: string): void => {
+  status.textContent = text;
+};
+
+setupScreens(app, setStatus);
+
+const dropdowns = setupDropdowns(app, setStatus);
 
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape') app.close();
+  if (event.key === 'Escape' && !dropdowns.close()) app.close();
 });
 
 /** Промисы камеры позволяют выстраивать движения друг за другом. */

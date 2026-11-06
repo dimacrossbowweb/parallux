@@ -6,9 +6,39 @@
     <title>Parallux demo</title>
     <link rel="icon" href="data:," />
     <link rel="stylesheet" href="/demo/style.css" />
+    <link rel="stylesheet" href="/demo/screens.css" />
+    <link rel="stylesheet" href="/demo/dropdowns.css" />
   </head>
   <body>
     <main id="page" class="page">
+      <header class="topbar">
+        <div class="topbar__group">
+          <div class="dropdown">
+            <button class="dropdown__trigger" type="button" data-dropdown aria-haspopup="menu" aria-expanded="false">Продукт <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>
+            <div class="dropdown__menu" role="menu" hidden>
+              <button class="dropdown__item" type="button" role="menuitem">Возможности</button>
+              <button class="dropdown__item" type="button" role="menuitem">Тарифы</button>
+              <button class="dropdown__item" type="button" role="menuitem">Новое</button>
+            </div>
+          </div>
+          <div class="dropdown">
+            <button class="dropdown__trigger" type="button" data-dropdown aria-haspopup="menu" aria-expanded="false">Ресурсы <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>
+            <div class="dropdown__menu" role="menu" hidden>
+              <button class="dropdown__item" type="button" role="menuitem">Документация</button>
+              <button class="dropdown__item" type="button" role="menuitem">Примеры</button>
+              <button class="dropdown__item" type="button" role="menuitem">Сообщество</button>
+            </div>
+          </div>
+        </div>
+        <div class="dropdown">
+          <button class="dropdown__trigger" type="button" data-dropdown aria-haspopup="menu" aria-expanded="false">Аккаунт <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>
+          <div class="dropdown__menu dropdown__menu--end" role="menu" hidden>
+            <button class="dropdown__item" type="button" role="menuitem">Профиль</button>
+            <button class="dropdown__item" type="button" role="menuitem">Подписка</button>
+            <button class="dropdown__item" type="button" role="menuitem">Выйти</button>
+          </div>
+        </div>
+      </header>
       <p class="page__eyebrow">Parallux</p>
       <h1 class="page__title">Интерфейс в&nbsp;глубину</h1>
       <p class="page__text">
@@ -22,7 +52,23 @@
         <button id="pan" class="ghost" type="button">Панорама</button>
         <button id="rotate" class="ghost" type="button">Поворот</button>
       </div>
+      <nav class="page__screens" aria-label="Экраны">
+        <button class="ghost" type="button" data-screen="settings">Настройки</button>
+        <button class="ghost" type="button" data-screen="gallery">Галерея</button>
+        <button class="ghost" type="button" data-screen="stats">Статистика</button>
+        <button class="ghost" type="button" data-screen="notifications">Уведомления</button>
+      </nav>
       <p id="status" class="page__status" role="status"></p>
+      <div class="corner">
+        <div class="dropdown">
+          <button class="dropdown__trigger" type="button" data-dropdown aria-haspopup="menu" aria-expanded="false">Ещё <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>
+          <div class="dropdown__menu dropdown__menu--end dropdown__menu--up" role="menu" hidden>
+            <button class="dropdown__item" type="button" role="menuitem">Справка</button>
+            <button class="dropdown__item" type="button" role="menuitem">Обратная связь</button>
+            <button class="dropdown__item" type="button" role="menuitem">О проекте</button>
+          </div>
+        </div>
+      </div>
     </main>
 
     <template id="menu-template">
@@ -58,6 +104,125 @@
             <button class="modal__button modal__button--primary" type="button" data-answer="yes">Да</button>
           </div>
         </section>
+      </div>
+    </template>
+
+    <template id="settings-template">
+      <div class="scrim scrim--dim">
+        <form class="sheet" aria-labelledby="settings-title">
+          <div class="sheet__head">
+            <h2 id="settings-title" class="sheet__title">Настройки</h2>
+            <button class="icon-button" type="button" data-close aria-label="Закрыть">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+          </div>
+          <label class="field">Уведомления<input class="switch" type="checkbox" checked /></label>
+          <label class="field">Автосохранение<input class="switch" type="checkbox" /></label>
+          <label class="field">
+            Громкость
+            <span class="field__range">
+              <input type="range" min="0" max="100" value="60" />
+              <output>60%</output>
+            </span>
+          </label>
+          <label class="field">
+            Язык
+            <select>
+              <option>Русский</option>
+              <option>English</option>
+            </select>
+          </label>
+          <div class="sheet__actions">
+            <button class="modal__button" type="button" data-close>Отмена</button>
+            <button class="modal__button modal__button--primary" type="submit">Сохранить</button>
+          </div>
+        </form>
+      </div>
+    </template>
+
+    <template id="gallery-template">
+      <div class="scrim scrim--dim scrim--top">
+        <section class="sheet sheet--wide" aria-labelledby="gallery-title">
+          <div class="sheet__head">
+            <h2 id="gallery-title" class="sheet__title">Галерея</h2>
+            <button class="icon-button" type="button" data-close aria-label="Закрыть">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+          </div>
+          <div class="gallery"></div>
+        </section>
+      </div>
+    </template>
+
+    <template id="viewer-template">
+      <div class="scrim scrim--dim">
+        <figure class="viewer" style="margin: 0">
+          <div class="viewer__image"></div>
+          <figcaption class="viewer__bar">
+            <p class="viewer__title"></p>
+            <button class="icon-button" type="button" data-close aria-label="Закрыть">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+          </figcaption>
+        </figure>
+      </div>
+    </template>
+
+    <template id="stats-template">
+      <div class="scrim scrim--dim">
+        <section class="sheet" aria-labelledby="stats-title">
+          <div class="sheet__head">
+            <h2 id="stats-title" class="sheet__title">Статистика</h2>
+            <div class="sheet__tools">
+              <div class="dropdown">
+                <button class="dropdown__trigger" type="button" data-dropdown aria-haspopup="menu" aria-expanded="false">За год <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></button>
+                <div class="dropdown__menu dropdown__menu--end" role="menu" hidden>
+                  <button class="dropdown__item" type="button" role="menuitem">За неделю</button>
+                  <button class="dropdown__item" type="button" role="menuitem">За месяц</button>
+                  <button class="dropdown__item" type="button" role="menuitem">За год</button>
+                </div>
+              </div>
+              <button class="icon-button" type="button" data-close aria-label="Закрыть">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+              </button>
+            </div>
+          </div>
+          <div class="tiles">
+            <div class="tile"><p class="tile__label">Посетители</p><p class="tile__value">12 480</p></div>
+            <div class="tile"><p class="tile__label">Конверсия</p><p class="tile__value">4,6%</p></div>
+            <div class="tile"><p class="tile__label">Рост</p><p class="tile__value">+18%</p></div>
+          </div>
+          <div class="bars" role="img" aria-label="График посещений за год, рост к концу года"></div>
+        </section>
+      </div>
+    </template>
+
+    <template id="notifications-template">
+      <div class="scrim scrim--drawer">
+        <aside class="drawer" aria-labelledby="notifications-title">
+          <div class="sheet__head">
+            <h2 id="notifications-title" class="sheet__title">Уведомления</h2>
+            <button class="icon-button" type="button" data-close aria-label="Закрыть">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
+            </button>
+          </div>
+          <ul class="notices">
+            <li class="notice">
+              <div><p class="notice__title">Новый комментарий</p><p class="notice__text">Анна ответила в обсуждении.</p></div>
+              <button class="icon-button" type="button" aria-label="Удалить"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
+            </li>
+            <li class="notice">
+              <div><p class="notice__title">Сборка готова</p><p class="notice__text">Версия 0.1.0 прошла все проверки.</p></div>
+              <button class="icon-button" type="button" aria-label="Удалить"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
+            </li>
+            <li class="notice">
+              <div><p class="notice__title">Напоминание</p><p class="notice__text">Встреча начнётся через 15 минут.</p></div>
+              <button class="icon-button" type="button" aria-label="Удалить"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>
+            </li>
+          </ul>
+          <p class="notice-empty" hidden>Новых уведомлений нет</p>
+          <button class="ghost" type="button" data-clear>Очистить всё</button>
+        </aside>
       </div>
     </template>
 

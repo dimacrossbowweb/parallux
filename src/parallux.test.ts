@@ -1,3 +1,4 @@
+import { gsap } from 'gsap';
 import {
   afterEach, beforeEach, describe, expect, it, vi,
 } from 'vitest';
@@ -214,6 +215,37 @@ describe('Parallux', () => {
       expect(document.activeElement).toBe(trigger);
     });
 
+    it('keeps the layer until the camera has left, even if the move is interrupted', async () => {
+      create({ transition: { duration: 150, easing: 'none' } }).add({ z: 0 }).mount();
+      await app.open({ name: 'menu' }, { duration: 0 });
+
+      const closing = app.close();
+
+      app.flyTo({ x: 5 });
+      await Promise.resolve();
+      await new Promise((resolve) => {
+        setTimeout(resolve, 30);
+      });
+
+      expect(app.layers).toHaveLength(2);
+
+      await closing;
+
+      expect(app.layers).toHaveLength(1);
+      expect(app.viewModel.frame.z).toBe(0);
+    });
+
+    it('finishes closing when destroyed halfway', async () => {
+      create({ transition: { duration: 60000 } }).add({ z: 0 }).mount();
+      await app.open({ name: 'menu' }, { duration: 0 });
+
+      const closing = app.close();
+
+      app.destroy();
+
+      await expect(closing).resolves.toBeUndefined();
+    });
+
     it('does nothing when there is nothing to close', async () => {
       create().add({ z: 0 }).mount();
 
@@ -228,6 +260,73 @@ describe('Parallux', () => {
       await app.open({ name: 'menu' }, { duration: 10 });
 
       expect(app.viewModel.frame.z).toBe(1);
+    });
+  });
+
+  describe('lookAt', () => {
+    const place = (el: HTMLElement, props: Record<string, number | HTMLElement>): void => {
+      Object.entries(props).forEach(([key, value]) => {
+        Object.defineProperty(el, key, { value, configurable: true });
+      });
+    };
+
+    const scene = () => {
+      const container = document.createElement('div');
+      const layerEl = document.createElement('div');
+      const item = document.createElement('div');
+
+      place(container, { clientWidth: 1000, clientHeight: 600 });
+      place(layerEl, {
+        offsetLeft: 0, offsetTop: 0, offsetParent: container,
+      });
+      place(item, {
+        offsetLeft: 880, offsetTop: 100, offsetWidth: 40, offsetHeight: 20, offsetParent: layerEl,
+      });
+
+      return { container, layerEl, item };
+    };
+
+    it('approaches the element by the configured share of the way', async () => {
+      const { container, layerEl, item } = scene();
+
+      create({ container, approach: 0.5 }).add({ z: 0, el: layerEl }).mount();
+
+      await app.lookAt(item);
+
+      // Центр элемента: 900, 110. Центр контейнера: 500, 300.
+      expect(app.camera).toMatchObject({ x: 200, y: -95 });
+    });
+
+    it('accepts its own approach and speed', async () => {
+      const { container, layerEl, item } = scene();
+
+      create({ container }).add({ z: 0, el: layerEl }).mount();
+
+      await app.lookAt(item, { approach: 1, duration: 10 });
+
+      expect(app.camera).toMatchObject({ x: 400, y: -190 });
+    });
+
+    it('does not depend on where the camera is', async () => {
+      const { container, layerEl, item } = scene();
+
+      create({ container }).add({ z: 0, el: layerEl }).mount();
+      await app.flyTo({ x: 999, y: 999 });
+
+      await app.lookAt(item, { approach: 1 });
+
+      expect(app.camera).toMatchObject({ x: 400, y: -190 });
+    });
+
+    it('takes the scroll of the layer into account', async () => {
+      const { container, layerEl, item } = scene();
+
+      place(layerEl, { scrollTop: 50 });
+      create({ container }).add({ z: 0, el: layerEl, scrollable: true }).mount();
+
+      await app.lookAt(item, { approach: 1 });
+
+      expect(app.camera.y).toBe(-240);
     });
   });
 
@@ -323,9 +422,9 @@ describe('Parallux', () => {
   });
 
   describe('glare', () => {
-    const glare = {
-      duration: 10, easing: 'none', rest: 0.5,
-    };
+    const glare = { rest: 0.5 };
+    // Дольше интервала опроса `vi.waitFor`, иначе движение можно не застать.
+    const transition = { duration: 300, easing: 'none' };
 
     it('is a single fixed element over the whole page', () => {
       const container = document.createElement('div');
@@ -338,37 +437,97 @@ describe('Parallux', () => {
       expect(glareEl()?.style).toMatchObject({ position: 'fixed', pointerEvents: 'none' });
     });
 
-    it('settles at the resting strength and stays', async () => {
-      create({ glare }).add({ z: 0 }).mount();
-
-      await vi.waitFor(() => expect(glareEl()?.style.opacity).toBe('0.5'));
+    const shift = (): number => Math.abs(Number(gsap.getProperty(glareEl(), 'xPercent')));
+    const scale = (): number => Number(gsap.getProperty(glareEl(), 'scale'));
+    const settled = (): Promise<void> => vi.waitFor(() => {
+      expect(scale()).toBe(1);
+      expect(glareEl()?.style.opacity).toBe('0.5');
     });
 
-    it('flares up when the camera reaches another layer', async () => {
-      // Дольше интервала опроса `vi.waitFor`, иначе вспышку можно не застать.
-      create({ glare: { ...glare, duration: 200 } }).add({ z: 0 }).add({ z: 1 }).mount();
-      await vi.waitFor(() => expect(glareEl()?.style.opacity).toBe('0.5'));
+    it('appears from the enlarged state and stays', async () => {
+      create({ glare }).add({ z: 0 }).mount();
+
+      expect(scale()).toBeGreaterThan(1);
+      expect(shift()).toBeGreaterThan(0);
+
+      await settled();
+
+      expect(shift()).toBe(0);
+    });
+
+    it('grows and shifts a little, then returns, when the layer changes', async () => {
+      create({ glare, transition }).add({ z: 0 }).add({ z: 1 }).mount();
+      await settled();
+
+      const started = performance.now();
 
       app.moveTo(1);
 
-      await vi.waitFor(() => expect(Number(glareEl()?.style.opacity)).toBeGreaterThan(0.5));
-      await vi.waitFor(() => expect(glareEl()?.style.opacity).toBe('0.5'));
+      await vi.waitFor(() => expect(scale()).toBeGreaterThan(1.05));
+      expect(shift()).toBeLessThan(8);
+      expect(glareEl()?.style.opacity).toBe('0.5');
+
+      await settled();
+
+      expect(performance.now() - started).toBeLessThan(transition.duration + 200);
     });
 
-    it('does not flare up on pan and rotation', async () => {
+    it('follows the speed passed to the camera', async () => {
+      create({ glare, transition }).add({ z: 0 }).add({ z: 1 }).mount();
+      await settled();
+
+      const moving = app.flyTo(1, { duration: 2000, easing: 'none' });
+
+      await new Promise((resolve) => {
+        setTimeout(resolve, transition.duration + 100);
+      });
+
+      expect(scale()).toBeGreaterThan(1);
+
+      app.moveTo(0);
+      await moving;
+    });
+
+    it('fades out when no layer is left under the camera', async () => {
+      create({ glare, transition }).add({ name: 'a', z: 0 }).mount();
+      await settled();
+
+      app.removeByName('a');
+
+      await vi.waitFor(() => expect(glareEl()?.style.opacity).toBe('0'));
+    });
+
+    it('stays still on pan and rotation', async () => {
       create({ glare }).add({ z: 0 }).mount();
-      await vi.waitFor(() => expect(glareEl()?.style.opacity).toBe('0.5'));
+      await settled();
 
       await app.flyTo({ x: 10 });
       await app.rotateTo(5);
 
+      expect(scale()).toBe(1);
+    });
+
+    it('shifts towards the source of light by the configured amount', () => {
+      create({ glare: { angle: 225, shift: 10 } });
+
+      const { shiftX, shiftY } = app.viewModel.glare;
+
+      expect(shiftX).toBeCloseTo(7.07);
+      expect(shiftY).toBeCloseTo(-7.07);
+    });
+
+    it('stands in place when motion is reduced', () => {
+      create({ reducedMotion: 'always', glare }).add({ z: 0 }).mount();
+
+      expect(scale()).toBe(1);
       expect(glareEl()?.style.opacity).toBe('0.5');
     });
 
     it('uses a linear gradient from the configured direction', () => {
-      create({ glare: { angle: 90, color: 'red', size: 40 } }).add({ z: 0 });
+      create({ glare: { angle: 90, color: 'red', size: 80 } }).add({ z: 0 });
 
-      expect(app.viewModel.glare.background).toBe('linear-gradient(90deg, red, transparent 40%)');
+      expect(app.viewModel.glare.background)
+        .toBe('linear-gradient(90deg, red 0%, red 30%, transparent 70%, transparent 80%)');
     });
 
     it('can be turned off', () => {

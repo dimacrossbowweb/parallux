@@ -2,6 +2,7 @@
   "drawDistance": 3,
   "zoom": 0.25,
   "strength": 20,
+  "approach": 0.35,
   "reducedMotion": "auto",
   "transition": {
     "duration": 400,
@@ -24,7 +25,7 @@
     "angle": 225,
     "size": 60,
     "rest": 0.6,
-    "duration": 900,
-    "easing": "sine.inOut"
+    "shift": 10,
+    "scale": 1.3
   }
 }

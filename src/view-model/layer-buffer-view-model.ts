@@ -1,10 +1,11 @@
-import gsap from 'gsap';
+import { gsap } from 'gsap';
 import {
   compareStructural,
   makeAutoObservable,
   observableRef,
   reaction,
   runInAction,
+  when,
 } from 'mobx';
 import {
   resolveConfig,
@@ -61,9 +62,12 @@ export interface IGlareViewState {
   enabled: boolean;
   background: string;
   rest: number;
-  peak: number;
-  duration: number;
-  easing: string;
+  /** Смещение в процентах от размера блика. */
+  shiftX: number;
+  shiftY: number;
+  scale: number;
+  /** В упрощённом режиме блик стоит на месте. */
+  animated: boolean;
 }
 
 export class LayerBufferViewModel {
@@ -74,6 +78,8 @@ export class LayerBufferViewModel {
   frame: IViewFrame;
 
   systemReducedMotion = false;
+
+  connected = false;
 
   #proxy: IViewFrame;
 
@@ -96,6 +102,8 @@ export class LayerBufferViewModel {
       config: false,
       frame: observableRef,
       animate: false,
+      settled: false,
+      moveSpeed: false,
       connect: false,
       disconnect: false,
     });
@@ -118,18 +126,26 @@ export class LayerBufferViewModel {
 
   get glare(): IGlareViewState {
     const {
-      enabled, color, angle, size, rest, duration, easing,
+      enabled, color, angle, size, rest, shift, scale,
     } = this.config.glare;
+    const radians = (angle * Math.PI) / 180;
+    const stops = `${color} 0%, ${color} 30%, transparent 70%, transparent ${size}%`;
 
     return {
       enabled,
-      background: `linear-gradient(${angle}deg, ${color}, transparent ${size}%)`,
+      background: `linear-gradient(${angle}deg, ${stops})`,
       rest,
-      // Вспышка — тоже движение, поэтому в упрощённом режиме её нет.
-      peak: this.reducedMotion ? rest : 1,
-      duration,
-      easing,
+      // Свет смещается в сторону начала градиента.
+      shiftX: -Math.sin(radians) * shift,
+      shiftY: Math.cos(radians) * shift,
+      scale,
+      animated: !this.reducedMotion,
     };
+  }
+
+  /** Скорость текущего движения камеры: заданная при вызове или из конфига. */
+  moveSpeed(): IParalluxTransition {
+    return this.#speeds.move ?? this.config.transition;
   }
 
   /**
@@ -185,6 +201,9 @@ export class LayerBufferViewModel {
 
     this.#proxy = this.#targetFrame();
     this.#sync();
+    runInAction(() => {
+      this.connected = true;
+    });
 
     const { camera } = this.model;
 
@@ -204,6 +223,17 @@ export class LayerBufferViewModel {
     this.#disconnect = [];
     Object.values(this.#tweens).forEach((tween) => tween.kill());
     this.#tweens = {};
+    runInAction(() => {
+      this.connected = false;
+    });
+  }
+
+  /**
+   * Завершается, когда камера дошла до цели по `z`. В отличие от промиса движения,
+   * новое движение его не прерывает: оно только продлевает ожидание.
+   */
+  settled(): Promise<void> {
+    return when(() => !this.connected || this.frame.z === this.model.camera.z);
   }
 
   /** Меняет камеру со своей скоростью. Промис завершается вместе с анимацией. */
@@ -256,7 +286,7 @@ export class LayerBufferViewModel {
   };
 
   #move({ x, y, z }: { x: number; y: number; z: number }): void {
-    const speed = this.#speeds.move ?? this.config.transition;
+    const speed = this.moveSpeed();
 
     if (this.reducedMotion) {
       // Смена слоя остаётся плавным проявлением, а движение по экрану убираем.

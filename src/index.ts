@@ -10,6 +10,7 @@ export {
 } from './config/config';
 export {
   Parallux,
+  type IParalluxLookAtOptions,
   type IParalluxOpenOptions,
   type TCameraTarget,
   type TParalluxOptions,
