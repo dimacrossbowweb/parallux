@@ -14,6 +14,7 @@ import {
   type TCameraSpeed,
   type TParalluxConfigOptions,
 } from '../config/config';
+import { type ICameraPosition } from '../entities/camera/camera.type';
 import { type LayerBufferModel } from '../model/layer-buffer-model';
 import { toCssSize } from '../utils/css';
 
@@ -36,6 +37,7 @@ export interface IViewFrame {
   x: number;
   y: number;
   z: number;
+  zoom: number;
   angle: number;
   pointerX: number;
   pointerY: number;
@@ -168,7 +170,7 @@ export class LayerBufferViewModel {
         // Интерактивность зависит от цели: слой должен принимать клики и фокус сразу.
         const reachable = opacityAt(this.model.camera.z - layer.z, drawDistance) > 0;
         const visible = opacity > 0 || reachable;
-        const scale = reducedMotion ? 1 : 2 ** (-depth * zoom);
+        const scale = (reducedMotion ? 1 : 2 ** (-depth * zoom)) * frame.zoom;
         // Дальние слои смещаются вслед за камерой слабее, как и положено перспективе.
         const panX = -frame.x * scale;
         const panY = -frame.y * scale;
@@ -209,7 +211,9 @@ export class LayerBufferViewModel {
 
     this.#disconnect.push(
       reaction(
-        () => ({ x: camera.x, y: camera.y, z: camera.z }),
+        () => ({
+          x: camera.x, y: camera.y, z: camera.z, zoom: camera.zoom,
+        }),
         (target) => this.#move(target),
         { equals: compareStructural },
       ),
@@ -271,11 +275,11 @@ export class LayerBufferViewModel {
 
   #targetFrame(): IViewFrame {
     const {
-      x, y, z, angle,
+      x, y, z, zoom, angle,
     } = this.model.camera;
 
     return {
-      x, y, z, angle, pointerX: 0, pointerY: 0,
+      x, y, z, zoom, angle, pointerX: 0, pointerY: 0,
     };
   }
 
@@ -285,15 +289,19 @@ export class LayerBufferViewModel {
     });
   };
 
-  #move({ x, y, z }: { x: number; y: number; z: number }): void {
+  #move({
+    x, y, z, zoom,
+  }: ICameraPosition): void {
     const speed = this.moveSpeed();
 
     if (this.reducedMotion) {
       // Смена слоя остаётся плавным проявлением, а движение по экрану убираем.
-      Object.assign(this.#proxy, { x, y });
+      Object.assign(this.#proxy, { x, y, zoom });
       this.#pending.move = this.#tween('move', { z }, speed);
     } else {
-      this.#pending.move = this.#tween('move', { x, y, z }, speed);
+      this.#pending.move = this.#tween('move', {
+        x, y, z, zoom,
+      }, speed);
     }
   }
 

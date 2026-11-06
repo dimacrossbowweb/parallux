@@ -25,6 +25,7 @@ export class LayerBufferModel {
         x: observable,
         y: observable,
         z: observable,
+        zoom: observable,
         angle: observable,
         moveTo: action,
         moveBy: action,

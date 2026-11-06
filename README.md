@@ -85,10 +85,11 @@ await app.close();
 | `flyTo(target, speed?)` → `Promise` | то же, со своей скоростью и промисом |
 | `flyBy(delta, speed?)` → `Promise` | относительное движение |
 | `lookAt(el, options?)` → `Promise` | подводит камеру к элементу |
+| `zoomTo(zoom, speed?)` → `Promise` | меняет масштаб отображения |
 | `rotateTo(angle, speed?)` → `Promise` | поворот вокруг оси OZ, в градусах |
 | `rotateBy(delta, speed?)` → `Promise` | относительный поворот |
 
-`target` — это число (`z`) или объект с любыми из координат `{ x, y, z }`. `speed` — это `{ duration, easing }`.
+`target` — это число (`z`) или объект с любыми из полей `{ x, y, z, zoom }`. `speed` — это `{ duration, easing }`.
 
 ```ts
 await app.flyTo({ x: 160, y: -60 }, { duration: 700, easing: 'power2.inOut' });
@@ -100,18 +101,20 @@ await Promise.all([
 ]);
 ```
 
-`lookAt` удобен для появляющихся элементов, например выпадающих меню. Он принимает `speed` и `approach`: какую часть пути до центра экрана проехать.
+`lookAt` удобен для появляющихся элементов, например выпадающих меню. Он принимает `speed`, `approach` (какую часть пути до центра экрана проехать) и `zoom` (масштаб на месте). Элемент целиком остаётся на экране, если помещается.
 
 ```ts
 menu.hidden = false;
-app.lookAt(menu, { approach: 0.35, duration: 500 });
+app.lookAt(menu, { zoom: 1.4, duration: 500 });
 
 // Вернуться
 menu.hidden = true;
-app.flyTo({ x: 0, y: 0 });
+app.flyTo({ x: 0, y: 0, zoom: 1 });
 ```
 
-Текущее положение доступно в `app.camera` (`x`, `y`, `z`, `angle`). Поля реактивны и работают с `autorun` из `mobx`.
+`zoom` камеры по умолчанию равен `1`. Он меняет масштаб всей сцены и анимируется вместе с движением, а настройка `zoom` в конфиге отвечает только за уменьшение слоёв с глубиной.
+
+Текущее положение доступно в `app.camera` (`x`, `y`, `z`, `zoom`, `angle`). Поля реактивны и работают с `autorun` из `mobx`.
 
 ### Жизненный цикл
 

@@ -95,6 +95,15 @@ describe('Parallux', () => {
       expect(app.camera).toMatchObject({ x: 5, y: 1, z: 1 });
     });
 
+    it('zooms with a promise', async () => {
+      create().add({ z: 0 }).mount();
+
+      await app.zoomTo(1.5);
+
+      expect(app.viewModel.frame.zoom).toBe(1.5);
+      expect(app.layers[0].el.style.scale).toBe('1.5');
+    });
+
     it('rotates with a promise', async () => {
       create().add({ z: 0 }).mount();
 
@@ -316,6 +325,44 @@ describe('Parallux', () => {
       await app.lookAt(item, { approach: 1 });
 
       expect(app.camera).toMatchObject({ x: 400, y: -190 });
+    });
+
+    it('keeps the element on screen when zooming in', async () => {
+      const { container, layerEl, item } = scene();
+
+      create({ container }).add({ z: 0, el: layerEl }).mount();
+
+      await app.lookAt(item, { approach: 0.5, zoom: 2 });
+
+      // До центра 400 по x. На экране должна остаться половина: (400 - x) * 2 = 200.
+      expect(app.camera).toMatchObject({ x: 300, zoom: 2 });
+    });
+
+    it('keeps a large zoomed element fully on screen', async () => {
+      const { container, layerEl, item } = scene();
+
+      place(item, {
+        offsetLeft: 700, offsetTop: 280, offsetWidth: 280, offsetHeight: 40,
+      });
+      create({ container }).add({ z: 0, el: layerEl }).mount();
+
+      await app.lookAt(item, { approach: 0, zoom: 2 });
+
+      // Ширина на экране 560, поэтому центр может отойти от середины не дальше 212.
+      expect(app.camera.x).toBe(234);
+    });
+
+    it('centers an element too large to fit', async () => {
+      const { container, layerEl, item } = scene();
+
+      place(item, {
+        offsetLeft: 300, offsetTop: 280, offsetWidth: 800, offsetHeight: 40,
+      });
+      create({ container }).add({ z: 0, el: layerEl }).mount();
+
+      await app.lookAt(item, { approach: 0, zoom: 2 });
+
+      expect(app.camera.x).toBe(200);
     });
 
     it('takes the scroll of the layer into account', async () => {

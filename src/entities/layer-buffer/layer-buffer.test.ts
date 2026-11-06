@@ -83,7 +83,7 @@ describe('LayerBuffer', () => {
       id: 'b',
       layers: [],
       camera: {
-        id: 'c', x: 0, y: 0, z: 0, angle: 0,
+        id: 'c', x: 0, y: 0, z: 0, zoom: 1, angle: 0,
       },
     });
   });

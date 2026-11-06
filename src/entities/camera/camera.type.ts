@@ -4,6 +4,8 @@ export interface ICameraPosition {
   x: number;
   y: number;
   z: number;
+  /** Масштаб отображения: 1 — как есть, больше — ближе. */
+  zoom: number;
 }
 
 export interface ICamera extends IBaseEntity, ICameraPosition {

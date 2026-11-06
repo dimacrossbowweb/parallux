@@ -39,6 +39,18 @@ describe('LayerBufferModel', () => {
     expect(seen).toHaveLength(6);
   });
 
+  it('reacts to zoom', () => {
+    const model = new LayerBufferModel();
+    const seen: number[] = [];
+    const stop = autorun(() => seen.push(model.camera.zoom));
+
+    model.moveCameraTo({ zoom: 2 });
+    model.camera.moveBy({ zoom: 1 });
+    stop();
+
+    expect(seen).toEqual([1, 2, 3]);
+  });
+
   it('moves the camera reactively when the layer under it is removed', () => {
     const model = new LayerBufferModel({
       layers: new Set([new Layer({ z: 0 }), new Layer({ z: -2 })]),
@@ -72,7 +84,7 @@ describe('LayerBufferModel', () => {
     const model = new LayerBufferModel({ camera: new Camera({ id: 'c', z: 1 }) });
 
     expect(model.camera.toJSON()).toEqual({
-      id: 'c', x: 0, y: 0, z: 1, angle: 0,
+      id: 'c', x: 0, y: 0, z: 1, zoom: 1, angle: 0,
     });
   });
 });

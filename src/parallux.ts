@@ -7,6 +7,9 @@ import { LayerBufferViewModel } from './view-model/layer-buffer-view-model';
 import { centerWithin } from './utils/layout';
 import { LayerBufferView, type TResizeListener } from './view/layer-buffer-view';
 
+/** Отступ от края экрана в `lookAt`, пиксели. */
+const VIEW_MARGIN = 8;
+
 const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
 /** Число — это `z`, а объект задаёт любые из координат. */
@@ -29,6 +32,8 @@ export interface IParalluxOpenOptions extends TCameraSpeed {
 export interface IParalluxLookAtOptions extends TCameraSpeed {
   /** Какую часть пути до центра экрана проехать, от 0 до 1. */
   approach?: number;
+  /** Масштаб камеры на месте. По умолчанию текущий. */
+  zoom?: number;
 }
 
 interface IOpenedLayer {
@@ -43,7 +48,7 @@ interface IOpenedLayer {
 /**
  * Центральная точка библиотеки. Методы возвращают `this`, а после `mount()` можно
  * продолжать добавлять слои и двигать камеру. Исключение — анимированные методы
- * `flyTo`, `flyBy`, `lookAt`, `rotateTo`, `rotateBy`, `open`, `close` и `closeAll`: они
+ * `flyTo`, `flyBy`, `lookAt`, `zoomTo`, `rotateTo`, `rotateBy`, `open`, `close` и `closeAll`: они
  * возвращают промис, который завершается вместе с анимацией.
  *
  * @example
@@ -138,15 +143,33 @@ export class Parallux {
   /** Подводит камеру к элементу, например к только что появившемуся меню. */
   lookAt(
     el: HTMLElement,
-    { approach = this.viewModel.config.approach, ...speed }: IParalluxLookAtOptions = {},
+    {
+      approach = this.viewModel.config.approach,
+      zoom = this.camera.zoom,
+      ...speed
+    }: IParalluxLookAtOptions = {},
   ): Promise<void> {
     const root = this.#root;
     const { x, y } = centerWithin(el, root);
+    // На экране остаётся доля `1 - approach` от исходного расстояния до центра,
+    // но не больше, чем позволяет увеличенный размер элемента.
+    const target = (center: number, size: number, rootSize: number): number => {
+      const distance = center - rootSize / 2;
+      const limit = Math.max(0, rootSize / 2 - (size * zoom) / 2 - VIEW_MARGIN);
+      const onScreen = Math.min(limit, Math.max(-limit, distance * (1 - approach)));
+
+      return distance - onScreen / zoom;
+    };
 
     return this.flyTo({
-      x: (x - root.clientWidth / 2) * approach,
-      y: (y - root.clientHeight / 2) * approach,
+      x: target(x, el.offsetWidth, root.clientWidth),
+      y: target(y, el.offsetHeight, root.clientHeight),
+      zoom,
     }, speed);
+  }
+
+  zoomTo(zoom: number, speed: TCameraSpeed = {}): Promise<void> {
+    return this.flyTo({ zoom }, speed);
   }
 
   rotateTo(angle: number, speed: TCameraSpeed = {}): Promise<void> {

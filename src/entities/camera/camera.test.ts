@@ -4,7 +4,7 @@ import { Camera } from './camera';
 describe('Camera', () => {
   it('starts at the origin', () => {
     expect(new Camera({ id: 'c' }).toJSON()).toEqual({
-      id: 'c', x: 0, y: 0, z: 0, angle: 0,
+      id: 'c', x: 0, y: 0, z: 0, zoom: 1, angle: 0,
     });
   });
 
@@ -22,6 +22,25 @@ describe('Camera', () => {
     camera.moveBy({ x: 2, y: 3, z: -1 });
 
     expect([camera.x, camera.y, camera.z]).toEqual([3, 3, 0]);
+  });
+
+  it('zooms absolutely and relatively', () => {
+    const camera = new Camera();
+
+    camera.moveTo({ zoom: 2 });
+    camera.moveBy({ zoom: -0.5 });
+
+    expect(camera.zoom).toBe(1.5);
+  });
+
+  it('never lets the zoom reach zero', () => {
+    const camera = new Camera({ zoom: -3 });
+
+    expect(camera.zoom).toBeGreaterThan(0);
+
+    camera.moveTo({ zoom: 0 });
+
+    expect(camera.zoom).toBeGreaterThan(0);
   });
 
   it('rotates', () => {

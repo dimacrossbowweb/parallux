@@ -190,6 +190,37 @@ describe('LayerBufferViewModel', () => {
       expect(translate(state(near).translate)[1]).toBeCloseTo(100);
     });
 
+    it('scales every layer and the pan offset with the zoom', async () => {
+      const {
+        layers: [near, deep], viewModel, state,
+      } = setup([0, -1], { zoom: 1 });
+
+      await viewModel.animate('move', {}, () => {
+        viewModel.model.moveCameraTo({ x: 100, zoom: 2 });
+      });
+
+      expect(state(near).scale).toBe('2');
+      expect(state(deep).scale).toBe('1');
+      expect(translate(state(near).translate)[0]).toBeCloseTo(-200);
+      expect(translate(state(deep).translate)[0]).toBeCloseTo(-100);
+    });
+
+    it('animates the zoom together with the movement', async () => {
+      const { viewModel } = setup([0]);
+      const moving = viewModel.animate('move', { duration: 300 }, () => {
+        viewModel.model.moveCameraTo({ x: 100, zoom: 2 });
+      });
+
+      await vi.waitFor(() => expect(viewModel.frame.zoom).toBeGreaterThan(1.1));
+
+      expect(viewModel.frame.zoom).toBeLessThan(2);
+      expect(viewModel.frame.x).toBeGreaterThan(0);
+
+      await moving;
+
+      expect(viewModel.frame).toMatchObject({ x: 100, zoom: 2 });
+    });
+
     it('stops following the camera after disconnect', () => {
       const { viewModel, model } = setup([0, -1]);
 
@@ -308,6 +339,16 @@ describe('LayerBufferViewModel', () => {
       await moving;
 
       expect(viewModel.frame).toMatchObject({ x: 50, z: -1 });
+
+      const zooming = viewModel.animate('move', {}, () => {
+        viewModel.model.moveCameraTo({ zoom: 2 });
+      });
+
+      expect(viewModel.frame.zoom).toBe(1);
+
+      await zooming;
+
+      expect(viewModel.frame.zoom).toBe(2);
     });
   });
 });
