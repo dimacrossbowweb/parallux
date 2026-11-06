@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Parallux demo</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="/demo/style.css" />
+  </head>
+  <body>
+    <main id="page" class="page">
+      <p class="page__eyebrow">Parallux</p>
+      <h1 class="page__title">Интерфейс в&nbsp;глубину</h1>
+      <p class="page__text">
+        Каждый экран — отдельный слой. Камера переходит на новый, а прежние отступают вглубь.
+      </p>
+      <button id="open-menu" class="cta" type="button" aria-haspopup="menu">
+        Открыть меню
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+      </button>
+      <div class="page__camera">
+        <button id="pan" class="ghost" type="button">Панорама</button>
+        <button id="rotate" class="ghost" type="button">Поворот</button>
+      </div>
+      <p id="status" class="page__status" role="status"></p>
+    </main>
+
+    <template id="menu-template">
+      <div class="scrim">
+        <div class="menu" role="menu" aria-label="Действия">
+          <button class="menu__item" type="button" role="menuitem" data-action="Переименовать">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16zM13 7l4 4" /></svg>
+            Переименовать
+          </button>
+          <button class="menu__item" type="button" role="menuitem" data-action="Дублировать">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9h11v11H9zM5 15H4V4h11v1" /></svg>
+            Дублировать
+          </button>
+          <button class="menu__item" type="button" role="menuitem" data-action="Поделиться">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4m0 0L8 8m4-4 4 4M5 13v7h14v-7" /></svg>
+            Поделиться
+          </button>
+          <button class="menu__item menu__item--danger" type="button" role="menuitem" data-action="Удалить">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7" /></svg>
+            Удалить
+          </button>
+        </div>
+      </div>
+    </template>
+
+    <template id="modal-template">
+      <div class="scrim scrim--dim">
+        <section class="modal" role="alertdialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-action">
+          <h2 id="modal-title" class="modal__title">Вы уверены?</h2>
+          <p id="modal-action" class="modal__action"></p>
+          <div class="modal__buttons">
+            <button class="modal__button" type="button" data-answer="no">Нет</button>
+            <button class="modal__button modal__button--primary" type="button" data-answer="yes">Да</button>
+          </div>
+        </section>
+      </div>
+    </template>
+
+    <script type="module" src="/demo/main.ts"></script>
+  </body>
+</html>

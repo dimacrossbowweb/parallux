@@ -1,0 +1,48 @@
+{
+  "name": "parallux",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "dimacrossbow",
+  "type": "module",
+  "main": "./dist/parallux.cjs",
+  "module": "./dist/parallux.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/parallux.js",
+      "require": "./dist/parallux.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "peerDependencies": {
+    "mobx": "^7.0.0"
+  },
+  "devDependencies": {
+    "@typescript/native": "npm:typescript@^7.0.2",
+    "eslint": "^9.39.5",
+    "eslint-config-airbnb-extended": "^3.3.0",
+    "jsdom": "^29.1.1",
+    "mobx": "^7.1.4",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
+    "typescript-eslint": "^8.72.1",
+    "vite": "^8.3.6",
+    "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "gsap": "^3.15.1"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "drawDistance": 3,
+  "zoom": 0.25,
+  "strength": 20,
+  "reducedMotion": "auto",
+  "transition": {
+    "duration": 400,
+    "easing": "power2.out"
+  },
+  "rotation": {
+    "duration": 400,
+    "easing": "power2.out"
+  },
+  "pointer": {
+    "duration": 300,
+    "easing": "power2.out",
+    "invertX": false,
+    "invertY": false,
+    "focusShift": 6
+  },
+  "glare": {
+    "enabled": true,
+    "color": "rgb(255 236 200 / 30%)",
+    "angle": 225,
+    "size": 60,
+    "rest": 0.6,
+    "duration": 900,
+    "easing": "sine.inOut"
+  }
+}
