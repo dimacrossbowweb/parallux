@@ -18,8 +18,7 @@ export default defineConfig({
     },
     sourcemap: true,
     rolldownOptions: {
-      // mobx обязан быть один на приложение, иначе реактивность не работает.
-      external: ['mobx', 'gsap'],
+      external: ['gsap'],
     },
   },
 });

@@ -1,13 +1,5 @@
 import { gsap } from 'gsap';
 import {
-  compareStructural,
-  makeAutoObservable,
-  observableRef,
-  reaction,
-  runInAction,
-  when,
-} from 'mobx';
-import {
   resolveConfig,
   type IParalluxConfig,
   type IParalluxTransition,
@@ -17,6 +9,13 @@ import {
 import { type ICameraPosition } from '../entities/camera/camera.type';
 import { type LayerBufferModel } from '../model/layer-buffer-model';
 import { toCssSize } from '../utils/css';
+import {
+  makeObservable,
+  reaction,
+  shallowEqual,
+  when,
+} from '../utils/observer';
+import { sameZ } from '../utils/z';
 
 const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 
@@ -99,16 +98,8 @@ export class LayerBufferViewModel {
     this.#proxy = this.#targetFrame();
     this.frame = { ...this.#proxy };
 
-    makeAutoObservable(this, {
-      model: false,
-      config: false,
-      frame: observableRef,
-      animate: false,
-      settled: false,
-      moveSpeed: false,
-      connect: false,
-      disconnect: false,
-    });
+    // Кадр заменяется целиком, поэтому наблюдается ссылка на него, а не его поля.
+    makeObservable(this, ['frame', 'systemReducedMotion', 'connected']);
   }
 
   get reducedMotion(): boolean {
@@ -123,7 +114,7 @@ export class LayerBufferViewModel {
   get activeLayerId(): string | null {
     const { z } = this.model.camera;
 
-    return this.model.layers.find((layer) => layer.z === z)?.id ?? null;
+    return this.model.layers.find((layer) => sameZ(layer.z, z))?.id ?? null;
   }
 
   get glare(): IGlareViewState {
@@ -131,7 +122,8 @@ export class LayerBufferViewModel {
       enabled, color, angle, size, rest, shift, scale,
     } = this.config.glare;
     const radians = (angle * Math.PI) / 180;
-    const stops = `${color} 0%, ${color} 30%, transparent 70%, transparent ${size}%`;
+    // Полная сила держится на первых двух пятых пути, к `size` засвет сходит на нет.
+    const stops = `${color} 0%, ${color} ${(size * 2) / 5}%, transparent ${size}%`;
 
     return {
       enabled,
@@ -162,8 +154,11 @@ export class LayerBufferViewModel {
     const cos = Math.cos(radians);
     const sin = Math.sin(radians);
 
-    return [...this.model.layers]
-      .sort((a, b) => a.z - b.z)
+    const sorted = [...this.model.layers].sort((a, b) => a.z - b.z);
+    // `z-index` принимает только целые, поэтому порядок задаёт ранг, а не сам `z`.
+    const levels = [...new Set(sorted.map((layer) => layer.z))];
+
+    return sorted
       .map((layer) => {
         const depth = frame.z - layer.z;
         const opacity = opacityAt(depth, drawDistance);
@@ -183,7 +178,7 @@ export class LayerBufferViewModel {
           el: layer.el,
           width: toCssSize(layer.width),
           height: toCssSize(layer.height),
-          zIndex: String(layer.z),
+          zIndex: String(levels.indexOf(layer.z)),
           translate: `${x}px ${y}px`,
           rotate: `${-frame.angle}deg`,
           scale: String(scale),
@@ -203,9 +198,7 @@ export class LayerBufferViewModel {
 
     this.#proxy = this.#targetFrame();
     this.#sync();
-    runInAction(() => {
-      this.connected = true;
-    });
+    this.connected = true;
 
     const { camera } = this.model;
 
@@ -215,7 +208,7 @@ export class LayerBufferViewModel {
           x: camera.x, y: camera.y, z: camera.z, zoom: camera.zoom,
         }),
         (target) => this.#move(target),
-        { equals: compareStructural },
+        { equals: shallowEqual },
       ),
       reaction(() => camera.angle, (angle) => this.#rotate(angle)),
       this.#watchReducedMotion(),
@@ -227,9 +220,7 @@ export class LayerBufferViewModel {
     this.#disconnect = [];
     Object.values(this.#tweens).forEach((tween) => tween.kill());
     this.#tweens = {};
-    runInAction(() => {
-      this.connected = false;
-    });
+    this.connected = false;
   }
 
   /**
@@ -284,9 +275,7 @@ export class LayerBufferViewModel {
   }
 
   #sync = (): void => {
-    runInAction(() => {
-      this.frame = { ...this.#proxy };
-    });
+    this.frame = { ...this.#proxy };
   };
 
   #move({
@@ -342,9 +331,7 @@ export class LayerBufferViewModel {
 
     const query = window.matchMedia(REDUCED_MOTION_QUERY);
     const update = (): void => {
-      runInAction(() => {
-        this.systemReducedMotion = query.matches;
-      });
+      this.systemReducedMotion = query.matches;
     };
 
     update();

@@ -1,5 +1,5 @@
 import { gsap } from 'gsap';
-import { autorun, type IReactionDisposer } from 'mobx';
+import { autorun, type TDisposer } from '../utils/observer';
 import { type LayerBufferViewModel } from '../view-model/layer-buffer-view-model';
 
 /** Блик лежит поверх всей страницы. */
@@ -14,7 +14,7 @@ export class LayerBufferView {
 
   #mounted = new Set<HTMLElement>();
 
-  #dispose: IReactionDisposer | null = null;
+  #dispose: TDisposer | null = null;
 
   #activeLayerId: string | null = null;
 
@@ -28,6 +28,9 @@ export class LayerBufferView {
 
   #onResize: TResizeListener;
 
+  /** Собственные стили контейнера до монтирования: `destroy` их возвращает. */
+  #containerStyle: Pick<CSSStyleDeclaration, 'position' | 'overflow' | 'isolation'> | null = null;
+
   constructor(
     container: HTMLElement,
     viewModel: LayerBufferViewModel,
@@ -40,6 +43,10 @@ export class LayerBufferView {
 
   mount(): void {
     if (this.#dispose) return;
+
+    const { position, overflow, isolation } = this.container.style;
+
+    this.#containerStyle = { position, overflow, isolation };
 
     if (getComputedStyle(this.container).position === 'static') {
       this.container.style.position = 'relative';
@@ -76,6 +83,9 @@ export class LayerBufferView {
 
     this.#mounted.forEach((el) => el.remove());
     this.#mounted.clear();
+
+    if (this.#containerStyle) Object.assign(this.container.style, this.#containerStyle);
+    this.#containerStyle = null;
   }
 
   #render(): void {

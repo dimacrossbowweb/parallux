@@ -1,3 +1,4 @@
+import { createId } from '../../utils/id';
 import { type TEntityFields } from '../../utils/types';
 import { type IBaseEntity } from './base-entity.type';
 
@@ -7,7 +8,7 @@ export class BaseEntity implements IBaseEntity {
   id: string;
 
   constructor(obj: IBaseEntityOptions = {}) {
-    this.id = obj.id ?? crypto.randomUUID();
+    this.id = obj.id ?? createId();
   }
 
   toString(): string {

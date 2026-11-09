@@ -9,7 +9,6 @@
     "depth",
     "ui",
     "transitions",
-    "mobx",
     "gsap"
   ],
   "license": "ISC",
@@ -48,16 +47,12 @@
     "prepublishOnly": "npm run typecheck && npm run lint && npm test && npm run build",
     "build:types": "dts-bundle-generator --project tsconfig.build.json --no-check -o dist/index.d.ts src/index.ts && node -e \"require('node:fs').copyFileSync('dist/index.d.ts','dist/index.d.cts')\""
   },
-  "peerDependencies": {
-    "mobx": "^7.0.0"
-  },
   "devDependencies": {
     "@typescript/native": "npm:typescript@^7.0.2",
     "dts-bundle-generator": "^9.5.1",
     "eslint": "^9.39.5",
     "eslint-config-airbnb-extended": "^3.3.0",
     "jsdom": "^29.1.1",
-    "mobx": "^7.1.4",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.72.1",
     "vite": "^8.3.6",

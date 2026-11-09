@@ -255,6 +255,122 @@ describe('Parallux', () => {
       await expect(closing).resolves.toBeUndefined();
     });
 
+    it('returns focus only once the layer under it is visible again', async () => {
+      const trigger = button('open');
+      let visibility = '';
+
+      create({ drawDistance: 3 }).add({ z: 0, el: layerWith(trigger) }).mount();
+      trigger.focus();
+
+      await app.open({ el: layerWith(button('a')) });
+      await app.open({ el: layerWith(button('b')) });
+      await app.open({ el: layerWith(button('c')) });
+
+      const [page] = app.layers;
+
+      expect(page.el.style.visibility).toBe('hidden');
+
+      trigger.addEventListener('focus', () => {
+        visibility = page.el.style.visibility;
+      });
+      await app.closeAll();
+
+      expect(visibility).toBe('visible');
+      expect(document.activeElement).toBe(trigger);
+    });
+
+    it('skips elements that cannot take focus', async () => {
+      const disabled = button('disabled');
+      const hidden = document.createElement('input');
+      const skipped = button('skipped');
+      const wanted = button('wanted');
+
+      disabled.disabled = true;
+      hidden.type = 'hidden';
+      skipped.tabIndex = -1;
+      create().add({ z: 0 }).mount();
+
+      await app.open({ el: layerWith(disabled, hidden, skipped, wanted) });
+
+      expect(document.activeElement).toBe(wanted);
+    });
+
+    it('focuses the layer itself when there is nothing to focus inside', async () => {
+      const trigger = button('open');
+
+      create().add({ z: 0, el: layerWith(trigger) }).mount();
+      trigger.focus();
+
+      await app.open({ name: 'empty' });
+
+      const menu = app.layers[1];
+
+      expect(document.activeElement).toBe(menu.el);
+      expect(menu.el.tabIndex).toBe(-1);
+    });
+
+    it('forgets a layer removed without close', async () => {
+      const trigger = button('open');
+
+      create().add({ z: 0, el: layerWith(trigger) }).mount();
+      trigger.focus();
+
+      const [page] = app.layers;
+
+      await app.open({ name: 'menu', el: layerWith(button('a')) });
+      app.removeByName('menu');
+
+      expect(page.el.inert).toBe(false);
+      expect(app.camera.z).toBe(0);
+      expect(document.activeElement).toBe(trigger);
+      await expect(app.close()).resolves.toBeUndefined();
+      expect(app.layers).toEqual([page]);
+    });
+
+    it('passes the context of a removed middle layer to the one above', async () => {
+      create().add({ z: 0 }).mount();
+
+      const [page] = app.layers;
+
+      await app.open({ name: 'menu' });
+      await app.open({ name: 'modal' });
+      app.removeByName('menu');
+
+      expect(page.el.inert).toBe(true);
+      expect(app.camera.z).toBe(2);
+
+      await app.close();
+
+      expect(page.el.inert).toBe(false);
+      expect(app.camera.z).toBe(0);
+      expect(app.layers).toEqual([page]);
+    });
+
+    it('releases inert from a covered layer removed while covered', async () => {
+      const el = document.createElement('div');
+
+      create().add({ name: 'page', z: 0, el }).mount();
+      await app.open({ name: 'menu' });
+
+      app.removeByName('page');
+
+      expect(el.inert).toBe(false);
+    });
+
+    it('closes opened layers at once on destroy', async () => {
+      create().add({ z: 0 }).mount();
+
+      const [page] = app.layers;
+
+      await app.open({ name: 'menu' });
+      app.destroy();
+
+      expect(page.el.inert).toBe(false);
+      expect(app.layers).toEqual([page]);
+      expect(app.camera.z).toBe(0);
+      await expect(app.close()).resolves.toBeUndefined();
+    });
+
     it('does nothing when there is nothing to close', async () => {
       create().add({ z: 0 }).mount();
 
@@ -388,7 +504,53 @@ describe('Parallux', () => {
       expect(container.style).toMatchObject({
         position: 'relative', overflow: 'hidden', isolation: 'isolate',
       });
-      expect(style).toMatchObject({ position: 'absolute', width: '100px', zIndex: '3' });
+      expect(style).toMatchObject({ position: 'absolute', width: '100px', zIndex: '0' });
+    });
+
+    it('orders layers with fractional z by rank', () => {
+      create().add({ z: 1 }).add({ z: -0.5 }).add({ z: 0.5 })
+        .add({ z: 0.5 })
+        .mount();
+
+      expect(app.layers.map(({ el }) => el.style.zIndex)).toEqual(['2', '0', '1', '1']);
+    });
+
+    it('finds the active layer despite float rounding', () => {
+      // Слой выше, иначе граница камеры сама поставит её ровно на 0.3.
+      create().add({ z: 0 }).add({ z: 0.3 }).add({ z: 1 })
+        .mount();
+
+      app.moveBy(0.1).moveBy(0.1).moveBy(0.1);
+
+      expect(app.camera.z).not.toBe(0.3);
+      expect(app.viewModel.activeLayerId).toBe(app.layers[1].id);
+    });
+
+    it('restores the container styles on destroy', () => {
+      const container = document.createElement('div');
+
+      container.style.overflow = 'auto';
+      create({ container }).add({ z: 0 }).mount();
+      app.destroy();
+
+      expect(container.style).toMatchObject({ position: '', overflow: 'auto', isolation: '' });
+    });
+
+    it('works without crypto.randomUUID outside a secure context', () => {
+      const { getRandomValues } = crypto;
+
+      vi.stubGlobal('crypto', { getRandomValues: getRandomValues.bind(crypto) });
+
+      try {
+        create().add({ z: 0 }).add({ z: 1 }).mount();
+
+        const [a, b] = app.layers;
+
+        expect(a.id).toMatch(/^[0-9a-f]{32}$/);
+        expect(a.id).not.toBe(b.id);
+      } finally {
+        vi.unstubAllGlobals();
+      }
     });
 
     it('removes a passed element from the container with its layer', () => {
@@ -574,7 +736,13 @@ describe('Parallux', () => {
       create({ glare: { angle: 90, color: 'red', size: 80 } }).add({ z: 0 });
 
       expect(app.viewModel.glare.background)
-        .toBe('linear-gradient(90deg, red 0%, red 30%, transparent 70%, transparent 80%)');
+        .toBe('linear-gradient(90deg, red 0%, red 32%, transparent 80%)');
+    });
+
+    it('fades out by the configured size', () => {
+      create({ glare: { color: 'red', size: 40 } });
+
+      expect(app.viewModel.glare.background).toContain('red 16%, transparent 40%)');
     });
 
     it('can be turned off', () => {

@@ -30,3 +30,12 @@ export {
   type TCameraMotion,
 } from './view-model/layer-buffer-view-model';
 export { LayerBufferView, type TResizeListener } from './view/layer-buffer-view';
+export {
+  autorun,
+  batch,
+  reaction,
+  untracked,
+  when,
+  type TDisposer,
+  type TEquals,
+} from './utils/observer';

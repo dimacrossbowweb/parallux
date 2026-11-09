@@ -5,12 +5,28 @@ import { type ILayer } from './entities/layer/layer.type';
 import { LayerBufferModel } from './model/layer-buffer-model';
 import { LayerBufferViewModel } from './view-model/layer-buffer-view-model';
 import { centerWithin } from './utils/layout';
+import { sameZ } from './utils/z';
 import { LayerBufferView, type TResizeListener } from './view/layer-buffer-view';
 
 /** Отступ от края экрана в `lookAt`, пиксели. */
 const VIEW_MARGIN = 8;
 
-const FOCUSABLE = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+/**
+ * Кандидаты на фокус. Отключённые, скрытые и прочие неподходящие отсеиваются
+ * проверкой `document.activeElement` после `focus()`.
+ */
+const FOCUSABLE = [
+  'a[href]',
+  'area[href]',
+  'button',
+  'input:not([type="hidden"])',
+  'select',
+  'textarea',
+  'iframe',
+  'summary',
+  '[contenteditable]:not([contenteditable="false"])',
+  '[tabindex]',
+].join(', ');
 
 /** Число — это `z`, а объект задаёт любые из координат. */
 export type TCameraTarget = number | Partial<ICameraPosition>;
@@ -45,6 +61,37 @@ interface IOpenedLayer {
   returnFocus: Element | null;
 }
 
+/** Фокус на первый подходящий элемент, а если такого нет, то на сам слой. */
+function focusInside(layer: ILayer, preferred?: HTMLElement): void {
+  const candidates = [
+    ...(preferred ? [preferred] : []),
+    ...[...layer.el.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.tabIndex >= 0),
+  ];
+  const focused = candidates.some((el) => {
+    el.focus();
+
+    return document.activeElement === el;
+  });
+
+  if (focused) return;
+
+  // Иначе фокус останется в слое, который только что закрыли от клавиатуры.
+  if (!layer.el.hasAttribute('tabindex')) Object.assign(layer.el, { tabIndex: -1 });
+
+  layer.el.focus();
+}
+
+/**
+ * Верхний слой наследует контекст удалённого нижнего: вернуться туда, откуда
+ * открывали нижний, и держать закрытым то, что закрывал он.
+ */
+const inherit = (upper: IOpenedLayer, lower: IOpenedLayer): IOpenedLayer => ({
+  ...upper,
+  previousZ: lower.previousZ,
+  covered: [...lower.covered, ...upper.covered],
+  returnFocus: upper.returnFocus?.isConnected ? upper.returnFocus : lower.returnFocus,
+});
+
 /**
  * Центральная точка библиотеки. Методы возвращают `this`, а после `mount()` можно
  * продолжать добавлять слои и двигать камеру. Исключение — анимированные методы
@@ -72,6 +119,9 @@ export class Parallux {
 
   #resizeListeners = new Set<TResizeListener>();
 
+  /** Слои, которым библиотека поставила `inert`. */
+  #inert = new Set<ILayer>();
+
   constructor({ container, ...config }: TParalluxOptions = {}) {
     this.#container = container;
     this.model = new LayerBufferModel();
@@ -93,25 +143,29 @@ export class Parallux {
   }
 
   pop(): this {
-    this.model.pop();
+    this.#remove(() => {
+      const layer = this.model.pop();
+
+      return layer ? [layer] : [];
+    });
 
     return this;
   }
 
   removeByName(name: string): this {
-    this.model.removeByName(name);
+    this.#remove(() => this.model.removeByName(name));
 
     return this;
   }
 
   removeById(id: string): this {
-    this.model.removeById(id);
+    this.#remove(() => this.model.removeById(id));
 
     return this;
   }
 
   removeByZ(z: number): this {
-    this.model.removeByZ(z);
+    this.#remove(() => this.model.removeByZ(z));
 
     return this;
   }
@@ -196,24 +250,21 @@ export class Parallux {
       ? target
       : new Layer({ ...target, z: target.z ?? this.#nextZ() });
     const previousZ = this.camera.z;
-    const covered = this.layers.filter((item) => item.z === previousZ);
 
     this.#opened.push({
       layer,
       previousZ,
-      covered,
+      covered: this.layers.filter((item) => sameZ(item.z, previousZ)),
       returnFocus: document.activeElement,
     });
-
-    covered.forEach((item) => {
-      Object.assign(item.el, { inert: true });
-    });
+    this.#syncInert();
 
     this.add(layer);
 
+    // Сначала камера: слой должен стать видимым, иначе фокус на него не встанет.
     const moving = this.flyTo(layer.z, speed);
 
-    (focus ?? layer.el.querySelector<HTMLElement>(FOCUSABLE))?.focus();
+    focusInside(layer, focus);
 
     return moving;
   }
@@ -249,8 +300,21 @@ export class Parallux {
     return this;
   }
 
+  /**
+   * Снимает слои и обработчики. Слои, открытые через `open`, закрываются сразу,
+   * без анимации, а камера возвращается туда, откуда открывали первый из них.
+   */
   destroy(): this {
     this.#view?.destroy();
+
+    const opened = this.#opened;
+    const [bottom] = opened;
+
+    this.#opened = [];
+    this.#syncInert();
+    opened.forEach(({ layer }) => this.model.removeById(layer.id));
+
+    if (bottom) this.model.moveCameraTo({ z: bottom.previousZ });
 
     return this;
   }
@@ -269,18 +333,74 @@ export class Parallux {
     if (!bottom) return;
 
     this.#opened = this.#opened.filter((item) => !closing.includes(item));
+    this.#syncInert();
 
-    closing.forEach(({ covered }) => covered.forEach((item) => {
-      Object.assign(item.el, { inert: false });
-    }));
+    // Сначала камера: слой, далёкий больше `drawDistance`, скрыт, и фокус на нём не встанет.
+    const moving = this.flyTo(bottom.previousZ, speed);
 
     if (bottom.returnFocus instanceof HTMLElement) bottom.returnFocus.focus();
 
-    await this.flyTo(bottom.previousZ, speed);
+    await moving;
     // Движение могли прервать, а слой удаляем только после ухода камеры,
     // иначе он исчезнет, не успев раствориться.
     await this.viewModel.settled();
 
     closing.forEach(({ layer }) => this.removeById(layer.id));
+  }
+
+  /** `inert` стоит ровно у тех слоёв, что закрыты открытыми через `open`. */
+  #syncInert(): void {
+    const present = new Set(this.layers);
+    const next = new Set(
+      this.#opened.flatMap(({ covered }) => covered).filter((layer) => present.has(layer)),
+    );
+
+    this.#inert.forEach((layer) => {
+      if (!next.has(layer)) Object.assign(layer.el, { inert: false });
+    });
+    next.forEach((layer) => {
+      Object.assign(layer.el, { inert: true });
+    });
+    this.#inert = next;
+  }
+
+  /**
+   * Удаление в обход `close`. Удалённые слои уходят из списка открытых, а верхний
+   * из оставшихся наследует их контекст. Если удалили верхний, камера и фокус
+   * возвращаются, как при `close`.
+   */
+  #remove(remove: () => ILayer[]): void {
+    const active = document.activeElement;
+    const removed = remove();
+    const isRemoved = ({ layer }: IOpenedLayer): boolean => removed.includes(layer);
+
+    if (!this.#opened.some(isRemoved)) {
+      // Удалённый слой мог быть закрыт `inert`: снимаем, элемент может вернуться в работу.
+      this.#syncInert();
+
+      return;
+    }
+
+    const { kept, carry } = this.#opened.reduce<{
+      kept: IOpenedLayer[];
+      carry: IOpenedLayer | null;
+    }>((acc, entry) => {
+      if (isRemoved(entry)) {
+        return { kept: acc.kept, carry: acc.carry ? inherit(entry, acc.carry) : entry };
+      }
+
+      return { kept: [...acc.kept, acc.carry ? inherit(entry, acc.carry) : entry], carry: null };
+    }, { kept: [], carry: null });
+
+    this.#opened = kept;
+    this.#syncInert();
+
+    if (!carry) return;
+
+    this.flyTo(carry.previousZ);
+
+    const focusWasInside = removed.some(({ el }) => active instanceof Node && el.contains(active));
+
+    if (focusWasInside && carry.returnFocus instanceof HTMLElement) carry.returnFocus.focus();
   }
 }

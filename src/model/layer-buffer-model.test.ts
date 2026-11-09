@@ -1,7 +1,7 @@
-import { autorun } from 'mobx';
 import { describe, expect, it } from 'vitest';
 import { Camera } from '../entities/camera/camera';
 import { Layer } from '../entities/layer/layer';
+import { autorun } from '../utils/observer';
 import { LayerBufferModel } from './layer-buffer-model';
 
 describe('LayerBufferModel', () => {
