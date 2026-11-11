@@ -1,16 +1,47 @@
 # Parallux
 
-Интерфейс как пространство. Экраны, меню и модальные окна — это слои на оси `z`, а переход между ними — движение камеры: прежний экран отступает вглубь, бледнеет и уменьшается, новый проявляется перед вами.
+The interface as a space. Screens, menus and modals are layers along the `z` axis, and moving between them is a camera move: the previous screen recedes into the depth, fading and shrinking, while the new one materializes in front of you.
 
-Работает в браузере, без привязки к фреймворку.
+Runs in the browser, framework-agnostic.
 
-## Установка
+<p align="center">
+  <img src="docs/assets/layers.gif" width="832" alt="A menu opens over the page, then a confirmation dialog over the menu; each previous layer recedes into the depth, and confirming flies the camera back">
+</p>
+
+## Showcase
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/assets/gallery.gif" alt="A gallery opens as a layer, a photo viewer opens as another layer on top of it, and closing them returns the camera step by step"><br>
+      <b>Screens stack in depth.</b> A gallery, then a photo viewer on top of it: three layers, and <code>close()</code> walks the camera back one step at a time.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/assets/camera.gif" alt="The camera zooms to dropdown menus in the corners of the page, then pans and rotates the whole scene"><br>
+      <b>A camera, not a slideshow.</b> <code>lookAt</code> flies to a dropdown and zooms in, while <code>flyTo</code> and <code>rotateTo</code> pan and turn the whole scene.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/assets/screens.gif" alt="A stats panel with its own dropdown, then a notifications drawer sliding in over the page"><br>
+      <b>Any shape of layer.</b> Panels, drawers and dropdowns inside layers all live in the same space, and focus follows the camera.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/assets/depth.gif" alt="Settings panel open over the page; as the pointer moves, the page behind shifts more than the panel, giving a sense of depth"><br>
+      <b>Real depth.</b> Layers follow the pointer at a rate that depends on their distance, and a soft glare sits over everything like sunlight.
+    </td>
+  </tr>
+</table>
+
+All of this is the demo from this repository: run `npm run dev` to try it yourself.
+
+## Installation
 
 ```bash
 npm install @dimacrossbow/parallux
 ```
 
-## Быстрый старт
+## Quick start
 
 ```ts
 import { Parallux } from '@dimacrossbow/parallux';
@@ -22,145 +53,145 @@ const app = new Parallux()
   .add({ name: 'page', z: 0, el: page })
   .mount();
 
-// Открыть слой: камера перейдёт на него, фокус тоже
+// Open a layer: the camera moves to it, and so does focus
 await app.open({ name: 'menu', el: menu });
 
-// Закрыть: камера вернётся, фокус тоже, слой удалится
+// Close: the camera and focus return, the layer is removed
 await app.close();
 ```
 
-Для слоя на всю страницу задайте `html` и `body` высоту `100%` и уберите `margin`.
+For a full-page layer, give `html` and `body` a height of `100%` and remove their `margin`.
 
-## Как устроено пространство
+## How the space works
 
-Камера смотрит в сторону убывания `z`.
+The camera looks toward decreasing `z`.
 
-| Положение слоя | Как выглядит |
+| Layer position | How it looks |
 |---|---|
-| Глубже камеры (`z` меньше) | бледнее и меньше, тем сильнее, чем дальше |
-| На уровне камеры | как есть |
-| За камерой (`z` больше) | прозрачный, не принимает клики |
-| Дальше `drawDistance` | не отрисовывается |
+| Deeper than the camera (smaller `z`) | paler and smaller, the further away the more so |
+| At the camera's level | as is |
+| Behind the camera (larger `z`) | transparent, doesn't receive clicks |
+| Beyond `drawDistance` | not rendered |
 
-Камера не выходит за пределы слоёв по `z`. Если удалить слой под ней, она перейдёт к ближайшей границе. Камера стартует с `z: 0`, поэтому первым добавляйте слой, на котором она должна стоять.
+The camera never goes beyond the layers' `z` range. If you remove the layer under it, it moves to the nearest boundary. The camera starts at `z: 0`, so add the layer it should rest on first.
 
 ## API
 
-Методы без пометки возвращают `this`, поэтому их можно вызывать цепочкой. Методы с `Promise` завершаются вместе с анимацией. Если анимацию прервать новой, её промис тоже завершится.
+Methods without a return annotation return `this`, so they can be chained. Methods returning a `Promise` resolve when their animation finishes. If an animation is interrupted by a new one, its promise resolves too.
 
-### Слои
+### Layers
 
-| Метод | Что делает |
+| Method | What it does |
 |---|---|
-| `add(layer)` | добавляет слой |
-| `pop()` | удаляет последний добавленный слой |
-| `removeByName(name)` | удаляет все слои с таким именем |
-| `removeById(id)` | удаляет слой по `id` |
-| `removeByZ(z)` | удаляет все слои с таким `z` |
-| `open(layer, options?)` → `Promise` | добавляет слой и переводит на него камеру и фокус |
-| `close(speed?)` → `Promise` | закрывает верхний слой, открытый через `open` |
-| `closeAll(speed?)` → `Promise` | закрывает все слои, открытые через `open` |
+| `add(layer)` | adds a layer |
+| `pop()` | removes the most recently added layer |
+| `removeByName(name)` | removes all layers with that name |
+| `removeById(id)` | removes a layer by `id` |
+| `removeByZ(z)` | removes all layers with that `z` |
+| `open(layer, options?)` → `Promise` | adds a layer and moves the camera and focus to it |
+| `close(speed?)` → `Promise` | closes the top layer opened via `open` |
+| `closeAll(speed?)` → `Promise` | closes all layers opened via `open` |
 
-`add` и `open` принимают опции слоя или готовый экземпляр `Layer`.
+`add` and `open` accept layer options or a ready-made `Layer` instance.
 
-| Опция | По умолчанию | Описание |
+| Option | Default | Description |
 |---|---|---|
-| `name` | `''` | имя слоя |
-| `z` | `0` | положение на оси. В `open` без `z` слой встаёт поверх остальных |
-| `el` | новый `div` | элемент слоя |
-| `width`, `height` | `'100%'` | размер: число в пикселях или значение CSS |
-| `scrollable` | `false` | прокручивать содержимое внутри слоя |
+| `name` | `''` | layer name |
+| `z` | `0` | position on the axis. In `open` without `z`, the layer is placed above the others |
+| `el` | new `div` | layer element |
+| `width`, `height` | `'100%'` | size: a number in pixels or a CSS value |
+| `scrollable` | `false` | scroll content inside the layer |
 
-`open` сам закрывает текущий слой от клавиатуры и кликов через `inert` и возвращает фокус при закрытии. По умолчанию фокус получает первый элемент слоя, способный его принять, другой можно передать в `options.focus`. Если такого элемента нет, фокус получает сам слой.
+`open` shields the current layer from keyboard and clicks using `inert`, and restores focus on close. By default focus goes to the first focusable element in the layer; you can pass a different one in `options.focus`. If there is no such element, the layer itself receives focus.
 
-Слой, открытый через `open`, можно удалить и методами `remove*` или `pop`: камера и фокус вернутся так же, как при `close`.
+A layer opened via `open` can also be removed with the `remove*` methods or `pop`: the camera and focus return just as with `close`.
 
-Элемент, созданный библиотекой, при удалении слоя удаляется. Переданный вами `el` остаётся целым, он только вынимается из контейнера.
+An element created by the library is removed together with its layer. An `el` you passed in stays intact; it is only detached from the container.
 
-### Камера
+### Camera
 
-| Метод | Что делает |
+| Method | What it does |
 |---|---|
-| `moveTo(target)`, `moveBy(delta)` | двигает камеру со скоростью из конфига |
-| `flyTo(target, speed?)` → `Promise` | то же, со своей скоростью и промисом |
-| `flyBy(delta, speed?)` → `Promise` | относительное движение |
-| `lookAt(el, options?)` → `Promise` | подводит камеру к элементу |
-| `zoomTo(zoom, speed?)` → `Promise` | меняет масштаб отображения |
-| `rotateTo(angle, speed?)` → `Promise` | поворот вокруг оси OZ, в градусах |
-| `rotateBy(delta, speed?)` → `Promise` | относительный поворот |
+| `moveTo(target)`, `moveBy(delta)` | moves the camera at the speed from the config |
+| `flyTo(target, speed?)` → `Promise` | same, with its own speed and a promise |
+| `flyBy(delta, speed?)` → `Promise` | relative movement |
+| `lookAt(el, options?)` → `Promise` | brings the camera to an element |
+| `zoomTo(zoom, speed?)` → `Promise` | changes the display scale |
+| `rotateTo(angle, speed?)` → `Promise` | rotation around the Z axis, in degrees |
+| `rotateBy(delta, speed?)` → `Promise` | relative rotation |
 
-`target` — это число (`z`) или объект с любыми из полей `{ x, y, z, zoom }`. `speed` — это `{ duration, easing }`.
+`target` is either a number (`z`) or an object with any of the fields `{ x, y, z, zoom }`. `speed` is `{ duration, easing }`.
 
 ```ts
 await app.flyTo({ x: 160, y: -60 }, { duration: 700, easing: 'power2.inOut' });
 
-// Движение и поворот независимы
+// Movement and rotation are independent
 await Promise.all([
   app.flyTo({ x: 100 }, { duration: 800 }),
   app.rotateTo(45, { duration: 300 }),
 ]);
 ```
 
-`lookAt` удобен для появляющихся элементов, например выпадающих меню. Он принимает `speed`, `approach` (какую часть пути до центра экрана проехать) и `zoom` (масштаб на месте). Элемент целиком остаётся на экране, если помещается.
+`lookAt` is handy for elements that pop up, such as dropdown menus. It accepts `speed`, `approach` (what fraction of the way to the screen center to travel) and `zoom` (scale at the destination). The element stays fully on screen if it fits.
 
 ```ts
 menu.hidden = false;
 app.lookAt(menu, { zoom: 1.4, duration: 500 });
 
-// Вернуться
+// Go back
 menu.hidden = true;
 app.flyTo({ x: 0, y: 0, zoom: 1 });
 ```
 
-`zoom` камеры по умолчанию равен `1`. Он меняет масштаб всей сцены и анимируется вместе с движением, а настройка `zoom` в конфиге отвечает только за уменьшение слоёв с глубиной.
+The camera's `zoom` defaults to `1`. It scales the whole scene and animates together with movement, whereas the `zoom` setting in the config only controls how layers shrink with depth.
 
-Текущее положение доступно в `app.camera` (`x`, `y`, `z`, `zoom`, `angle`). Это цель камеры: она меняется сразу, а анимация догоняет её.
+The current position is available in `app.camera` (`x`, `y`, `z`, `zoom`, `angle`). This is the camera's target: it changes immediately, and the animation catches up with it.
 
-### Наблюдение
+### Observing
 
-Поля камеры и список слоёв реактивны. Следить за ними можно функциями из пакета:
+Camera fields and the layer list are reactive. You can observe them with functions from the package:
 
 ```ts
 import { autorun, reaction } from '@dimacrossbow/parallux';
 
-// Выполняется сразу и при каждом изменении прочитанного
+// Runs immediately and on every change to what it read
 const stop = autorun(() => {
-  status.textContent = `z = ${app.camera.z}, слоёв: ${app.layers.length}`;
+  status.textContent = `z = ${app.camera.z}, layers: ${app.layers.length}`;
 });
 
-// Вызывается только при смене значения
+// Called only when the value changes
 reaction(() => app.camera.zoom > 1, (zoomed) => toolbar.classList.toggle('zoomed', zoomed));
 
 stop();
 ```
 
-| Функция | Что делает |
+| Function | What it does |
 |---|---|
-| `autorun(fn)` → `stop` | выполняет `fn` сразу и заново при изменении всего, что она прочитала |
-| `reaction(expr, effect, { equals }?)` → `stop` | вызывает `effect` с новым значением `expr`, когда оно меняется |
-| `when(predicate)` → `Promise` | завершается, когда `predicate` станет истинным |
-| `batch(fn)` | откладывает реакции до конца `fn`, чтобы несколько изменений дали один запуск |
-| `untracked(fn)` | выполняет `fn` без подписки на прочитанное |
+| `autorun(fn)` → `stop` | runs `fn` immediately and again whenever anything it read changes |
+| `reaction(expr, effect, { equals }?)` → `stop` | calls `effect` with the new value of `expr` when it changes |
+| `when(predicate)` → `Promise` | resolves when `predicate` becomes true |
+| `batch(fn)` | defers reactions until the end of `fn`, so several changes trigger a single run |
+| `untracked(fn)` | runs `fn` without subscribing to what it reads |
 
-Реакции срабатывают синхронно, сразу после изменения или в конце `batch`. Ошибка в одной реакции не останавливает остальные и выбрасывается отдельно.
+Reactions fire synchronously, right after a change or at the end of `batch`. An error in one reaction doesn't stop the others and is rethrown separately.
 
-### Жизненный цикл
+### Lifecycle
 
-| Метод | Что делает |
+| Method | What it does |
 |---|---|
-| `mount()` | монтирует слои. После него можно продолжать работу с библиотекой |
-| `destroy()` | снимает слои и обработчики, возвращает стили контейнера. Слои, открытые через `open`, закрываются сразу. Потом можно вызвать `mount()` снова |
-| `onResize(callback)` | сообщает `{ width, height }` при изменении размера контейнера |
+| `mount()` | mounts the layers. After that you can keep working with the library |
+| `destroy()` | removes layers and handlers, restores the container's styles. Layers opened via `open` are closed immediately. You can call `mount()` again afterwards |
+| `onResize(callback)` | reports `{ width, height }` when the container size changes |
 
-Слои в процентах подстраиваются под размер сами. `onResize` нужен для содержимого с координатами в пикселях:
+Percentage-sized layers adapt on their own. `onResize` is for content positioned in pixels:
 
 ```ts
 app.onResize(() => placeMenu());
 ```
 
-## Настройки
+## Settings
 
-Передаются в конструктор, вложенные настройки объединяются со значениями по умолчанию.
+Passed to the constructor; nested settings are merged with the defaults.
 
 ```ts
 new Parallux({
@@ -171,7 +202,7 @@ new Parallux({
 });
 ```
 
-Настройки удобно хранить в JSON и передавать целиком:
+It's convenient to keep settings in JSON and pass them as a whole:
 
 ```ts
 import { Parallux, type TParalluxOptions } from '@dimacrossbow/parallux';
@@ -180,68 +211,68 @@ import config from './parallux.json';
 new Parallux(config as TParalluxOptions);
 ```
 
-Приведение типа нужно потому, что TypeScript читает строки из JSON как `string`.
+The type cast is needed because TypeScript reads strings from JSON as `string`.
 
-| Настройка | По умолчанию | Описание |
+| Setting | Default | Description |
 |---|---|---|
-| `container` | `document.body` | куда монтировать слои |
-| `drawDistance` | `3` | на сколько единиц `z` в глубину видны слои |
-| `zoom` | `0.25` | скорость уменьшения слоёв с глубиной |
-| `strength` | `20` | сдвиг за указателем в пикселях на единицу глубины |
-| `approach` | `0.35` | какую часть пути до центра экрана проезжает `lookAt` |
-| `reducedMotion` | `'auto'` | `auto`, `always` или `never`, см. ниже |
-| `transition` | `{ duration: 400, easing: 'power2.out' }` | движение камеры и переход между слоями |
-| `rotation` | `{ duration: 400, easing: 'power2.out' }` | поворот камеры |
-| `pointer.duration`, `pointer.easing` | `300`, `'power2.out'` | плавность следования за указателем |
-| `pointer.invertX`, `pointer.invertY` | `false` | инверсия по осям |
-| `pointer.focusShift` | `6` | сдвиг в пикселях у слоя под камерой |
-| `glare.enabled` | `true` | включить блик |
-| `glare.color` | `'rgb(255 236 200 / 30%)'` | цвет; прозрачность задаёт силу засвета |
-| `glare.angle` | `225` | направление света в градусах CSS |
-| `glare.size` | `70` | на каком проценте длины засвет сходит на нет. Полная сила держится на первых двух пятых этого пути |
-| `glare.rest` | `0.6` | сила засвета, от 0 до 1 |
-| `glare.shift` | `10` | на сколько процентов блик смещается при смене слоя |
-| `glare.scale` | `1.3` | до какого масштаба вырастает при смещении |
+| `container` | `document.body` | where to mount the layers |
+| `drawDistance` | `3` | how many `z` units deep layers are visible |
+| `zoom` | `0.25` | how fast layers shrink with depth |
+| `strength` | `20` | pointer-follow offset in pixels per unit of depth |
+| `approach` | `0.35` | what fraction of the way to the screen center `lookAt` travels |
+| `reducedMotion` | `'auto'` | `auto`, `always` or `never`, see below |
+| `transition` | `{ duration: 400, easing: 'power2.out' }` | camera movement and transitions between layers |
+| `rotation` | `{ duration: 400, easing: 'power2.out' }` | camera rotation |
+| `pointer.duration`, `pointer.easing` | `300`, `'power2.out'` | smoothness of pointer following |
+| `pointer.invertX`, `pointer.invertY` | `false` | per-axis inversion |
+| `pointer.focusShift` | `6` | offset in pixels for the layer under the camera |
+| `glare.enabled` | `true` | enable the glare |
+| `glare.color` | `'rgb(255 236 200 / 30%)'` | color; opacity sets the glare's intensity |
+| `glare.angle` | `225` | light direction in CSS degrees |
+| `glare.size` | `70` | at what percentage of the length the glare fades out. Full intensity holds for the first two fifths of that distance |
+| `glare.rest` | `0.6` | glare intensity, from 0 to 1 |
+| `glare.shift` | `10` | how many percent the glare shifts when the layer changes |
+| `glare.scale` | `1.3` | how large it grows while shifting |
 
-`duration` задаётся в миллисекундах, `easing` — это любое значение [`ease` из GSAP](https://gsap.com/docs/v3/Eases/).
+`duration` is in milliseconds; `easing` is any [GSAP `ease`](https://gsap.com/docs/v3/Eases/) value.
 
-### Блик
+### Glare
 
-Это постоянный засвет поверх всей страницы, как от солнца. При смене слоя он немного смещается и вырастает, затем возвращается на место. Скорость совпадает со скоростью смены слоя, в том числе заданной в `flyTo` или `open`. Запас масштаба прячет края блика за экраном, поэтому держите `scale` не меньше `1 + shift / 50`. Клики не перехватывает.
+A constant light wash over the whole page, like sunlight. When the layer changes, it shifts and grows slightly, then returns to its place. Its speed matches the layer transition speed, including speeds set in `flyTo` or `open`. The extra scale keeps the glare's edges off screen, so keep `scale` at least `1 + shift / 50`. It doesn't intercept clicks.
 
-### Уменьшение движения
+### Reduced motion
 
-По умолчанию библиотека следует системной настройке `prefers-reduced-motion`. В упрощённом режиме нет масштаба, сдвига за указателем и смещения блика, а панорама и поворот применяются сразу. Смена слоёв остаётся плавным проявлением.
+By default the library follows the system `prefers-reduced-motion` setting. In reduced mode there's no scaling, pointer following or glare shifting, and panning and rotation apply instantly. Layer transitions remain a smooth fade-in.
 
-## Длинные страницы
+## Long pages
 
-Контейнер получает `overflow: hidden`, а слой занимает его целиком, поэтому содержимое длиннее экрана обрежется. Включите прокрутку внутри слоя:
+The container gets `overflow: hidden` and the layer fills it entirely, so content taller than the screen gets clipped. Enable scrolling inside the layer:
 
 ```ts
 app.add({ name: 'page', z: 0, el: page, scrollable: true });
 ```
 
-Прокрутка идёт внутри слоя, поэтому `window.scrollY` останется `0`. Читайте `layer.el.scrollTop`.
+Scrolling happens inside the layer, so `window.scrollY` stays `0`. Read `layer.el.scrollTop` instead.
 
-## Ограничения
+## Limitations
 
-- Камера вращает каждый слой вокруг его центра. Для слоёв на весь контейнер это совпадает с центром экрана.
-- При сдвиге камеры по `x` и `y` становятся видны края слоёв. Фон страницы делайте того же цвета, что и фон контейнера, а затемнение под модальными окнами продлевайте за край слоя, например через `box-shadow: 0 0 0 100vmax`.
-- Поля уже добавленного слоя не реактивны: `layer.z = 5` не вызовет перерисовку.
-- Анимация идёт в главном потоке, поэтому тяжёлые вычисления в приложении могут вызывать рывки.
-- В фоновой вкладке анимация приостанавливается, вместе с ней ждут и промисы.
+- The camera rotates each layer around its own center. For layers that fill the container, this matches the screen center.
+- When the camera moves along `x` and `y`, layer edges become visible. Make the page background the same color as the container background, and extend modal backdrops beyond the layer edge, e.g. with `box-shadow: 0 0 0 100vmax`.
+- Fields of an already added layer aren't reactive: `layer.z = 5` won't trigger a re-render.
+- Animation runs on the main thread, so heavy computations in the app can cause jank.
+- In a background tab, animation pauses, and promises wait along with it.
 
-## Разработка
+## Development
 
 ```bash
 npm install
-npm run dev        # демо на http://127.0.0.1:5199
+npm run dev        # demo at http://127.0.0.1:5199
 npm test
 npm run lint
 npm run typecheck
 npm run build
 ```
 
-## Лицензия
+## License
 
-ISC. Библиотека использует [GSAP](https://gsap.com/licensing/), у которого своя бесплатная лицензия с ограничениями: она запрещает использование в визуальных no-code конструкторах анимации.
+ISC. The library uses [GSAP](https://gsap.com/licensing/), which has its own free license with restrictions: it prohibits use in visual no-code animation builders.
