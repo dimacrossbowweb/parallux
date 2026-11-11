@@ -1,5 +1,9 @@
 # Parallux
 
+[![npm version](https://img.shields.io/npm/v/@dimacrossbow/parallux)](https://www.npmjs.com/package/@dimacrossbow/parallux)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/@dimacrossbow/parallux)](https://bundlephobia.com/package/@dimacrossbow/parallux)
+[![license](https://img.shields.io/npm/l/@dimacrossbow/parallux)](LICENSE)
+
 The interface as a space. Screens, menus and modals are layers along the `z` axis, and moving between them is a camera move: the previous screen recedes into the depth, fading and shrinking, while the new one materializes in front of you.
 
 Runs in the browser, framework-agnostic.
@@ -37,8 +41,38 @@ All of this is the demo from this repository: run `npm run dev` to try it yourse
 
 ## Installation
 
+The package is published on npm as [`@dimacrossbow/parallux`](https://www.npmjs.com/package/@dimacrossbow/parallux).
+
 ```bash
 npm install @dimacrossbow/parallux
+# or
+yarn add @dimacrossbow/parallux
+pnpm add @dimacrossbow/parallux
+bun add @dimacrossbow/parallux
+```
+
+[GSAP](https://gsap.com/) is a dependency and gets installed automatically. TypeScript types ship with the package, so you don't need to install anything extra.
+
+The package works with both ES modules and CommonJS:
+
+```ts
+import { Parallux } from '@dimacrossbow/parallux';
+```
+
+```js
+const { Parallux } = require('@dimacrossbow/parallux');
+```
+
+### Without a bundler
+
+For a plain HTML page, import the package from a CDN. jsDelivr resolves GSAP for you:
+
+```html
+<script type="module">
+  import { Parallux } from 'https://cdn.jsdelivr.net/npm/@dimacrossbow/parallux@1/+esm';
+
+  new Parallux().add({ name: 'page', el: document.body.firstElementChild }).mount();
+</script>
 ```
 
 ## Quick start

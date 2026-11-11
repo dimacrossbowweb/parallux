@@ -1,6 +1,6 @@
 {
   "name": "@dimacrossbow/parallux",
-  "version": "0.1.0",
+  "version": "1.0.1",
   "description": "Layered interfaces with a camera: screens, menus and modals as depth on the z axis",
   "keywords": [
     "parallax",
